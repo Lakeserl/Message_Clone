@@ -1,6 +1,7 @@
-import Message from "../models/Message";
-import User from "../models/User";
-import cloudinary from "../lib/cloudinary";
+import cloudinary from "../lib/cloudinary.js";
+import Message from "../models/Message.js";
+import User from "../models/User.js";
+import { userSocketMap } from '../server.js';
 
 export const getUserForSideBar = async (req, res) => {
   try {
@@ -10,7 +11,7 @@ export const getUserForSideBar = async (req, res) => {
     );
 
     const unseenMessages = {};
-    const promises = filteredUsers.map(async () => {
+    const promises = filteredUsers.map(async (user) => {
       const messages = await Message.find({
         senderId: user._id,
         receiverId: userId,
@@ -18,7 +19,7 @@ export const getUserForSideBar = async (req, res) => {
       });
 
       if (messages.length > 0) {
-        unseenMessages[userId] = messages.length;
+        unseenMessages[user._id] = messages.length;
       }
     });
     await Promise.all(promises);
@@ -80,6 +81,12 @@ export const sendMessage = async (req, res) => {
             text,
             image: imageUrl
         })
+
+        const receiverSocketId = userSocketMap[receiverId];
+        if(receiverId){
+          io.to(receiverSocketId).emit("newMessage", newMessage);
+        }
+
 
         res.json({success: true, newMessage});
         
